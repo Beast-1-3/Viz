@@ -20,7 +20,7 @@ app.use(chaosMiddleware); // Injected chaos monkey
 app.use('/api/upload', uploadRoutes);
 
 // Static Files (for completed downloads)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/vault', express.static(path.join(__dirname, 'CloudConnect-Vault')));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)

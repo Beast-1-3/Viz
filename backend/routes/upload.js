@@ -8,8 +8,9 @@ const Chunk = require('../models/Chunk');
 const { mergeChunks, calculateFileHash, peekZip } = require('../utils/fileProcessor');
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
-const PROCESSING_DIR = path.join(__dirname, '../uploads/processing');
-const COMPLETED_DIR = path.join(__dirname, '../uploads/completed');
+const VAULT_DIR = path.join(__dirname, '../CloudConnect-Vault');
+const PROCESSING_DIR = path.join(VAULT_DIR, 'Incomplete');
+const COMPLETED_DIR = path.join(VAULT_DIR, 'Ready');
 
 // Ensure directories exist
 [PROCESSING_DIR, COMPLETED_DIR].forEach(dir => {
@@ -246,8 +247,12 @@ router.get('/download/:uploadId', async (req, res) => {
             return res.status(404).json({ error: 'Physical file not found' });
         }
 
-        // res.download will set Content-Disposition and clear filename automatically
-        res.download(filePath, upload.filename);
+        // Explicitly set headers to ensure "proper" filename handling across all browsers
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(upload.filename)}"`);
+
+        const fileStream = fs.createReadStream(filePath);
+        fileStream.pipe(res);
     } catch (error) {
         console.error('Download error:', error);
         res.status(500).json({ error: 'Internal server error' });

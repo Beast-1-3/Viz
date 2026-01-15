@@ -5,7 +5,7 @@ const Upload = require('../models/Upload');
 const Chunk = require('../models/Chunk');
 
 const EXPIRATION_HOURS = 24; // Cleanup files older than 24 hours
-const PROCESSING_DIR = path.join(__dirname, '../uploads/processing');
+const PROCESSING_DIR = path.join(__dirname, '../CloudConnect-Vault/Incomplete');
 
 const startCleanupJob = () => {
     // Run every hour at minute 0
