@@ -29,6 +29,7 @@ function App() {
   const uploadStartTime = useRef(null);
   const bytesUploadedRef = useRef(0);
   const speedIntervalRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     loadHistory();
@@ -121,6 +122,9 @@ function App() {
 
       startSpeedTracker(file.size, uploadedCount * CHUNK_SIZE);
 
+      // Initialize AbortController for this session
+      abortControllerRef.current = new AbortController();
+
       const MAX_CONCURRENT = 3;
       const queue = [...missingChunks];
 
@@ -128,21 +132,28 @@ function App() {
         const workers = [];
         const runWorker = async () => {
           while (queue.length > 0) {
-            if (isPausedRef.current) break; // Check if we should stop this worker
+            if (isPausedRef.current) break;
 
             const chunkIndex = queue.shift();
-            // If the queue was empty but another worker got it, skip
             if (chunkIndex === undefined) continue;
 
             const start = chunkIndex * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const chunk = file.slice(start, end);
 
-            await uploadChunkWithRetry(chunk, uploadId, chunkIndex);
-
-            uploadedCount++;
-            setUploadStats({ uploaded: uploadedCount, total: totalChunks });
-            setProgress(Math.floor((uploadedCount / totalChunks) * 100));
+            try {
+              await uploadChunkWithRetry(chunk, uploadId, chunkIndex, 0, abortControllerRef.current.signal);
+              uploadedCount++;
+              setUploadStats({ uploaded: uploadedCount, total: totalChunks });
+              setProgress(Math.floor((uploadedCount / totalChunks) * 100));
+            } catch (err) {
+              if (err.name === 'CanceledError') {
+                // Re-queue the chunk for next time
+                queue.push(chunkIndex);
+                break;
+              }
+              throw err;
+            }
           }
         };
 
@@ -190,12 +201,15 @@ function App() {
     if (!nextState) {
       uploadFile();
     } else {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       stopSpeedTracker();
     }
   };
 
 
-  const uploadChunkWithRetry = async (chunk, uploadId, chunkIndex, retryCount = 0) => {
+  const uploadChunkWithRetry = async (chunk, uploadId, chunkIndex, retryCount = 0, signal = null) => {
     setChunkStates(prev => ({ ...prev, [chunkIndex]: 'uploading' }));
     const formData = new FormData();
     formData.append('chunk', chunk);
@@ -203,15 +217,21 @@ function App() {
     formData.append('chunkIndex', chunkIndex.toString());
 
     try {
-      await axios.post(`${API_BASE}/chunk`, formData);
+      await axios.post(`${API_BASE}/chunk`, formData, { signal });
       setChunkStates(prev => ({ ...prev, [chunkIndex]: 'success' }));
       bytesUploadedRef.current += chunk.size;
     } catch (err) {
+      if (axios.isCancel(err)) {
+        setChunkStates(prev => ({ ...prev, [chunkIndex]: 'pending' }));
+        const error = new Error('Upload canceled');
+        error.name = 'CanceledError';
+        throw error;
+      }
       if (retryCount < 3) {
         setChunkStates(prev => ({ ...prev, [chunkIndex]: 'error' }));
         const delay = Math.pow(2, retryCount) * 1000;
         await new Promise(r => setTimeout(r, delay));
-        return uploadChunkWithRetry(chunk, uploadId, chunkIndex, retryCount + 1);
+        return uploadChunkWithRetry(chunk, uploadId, chunkIndex, retryCount + 1, signal);
       }
       setChunkStates(prev => ({ ...prev, [chunkIndex]: 'error' }));
       throw err;
