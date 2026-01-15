@@ -211,7 +211,7 @@ router.post('/finalize', async (req, res) => {
             status: 'COMPLETED',
             finalHash,
             zipContent,
-            fileUrl: `/uploads/completed/${path.basename(finalPath)}`
+            fileUrl: `/api/upload/download/${uploadId}`
         });
 
         // Cleanup: Remove chunks from DB and disk (optional, ideally after a delay or success)
@@ -224,6 +224,33 @@ router.post('/finalize', async (req, res) => {
             await Upload.findByIdAndUpdate(uploadId, { status: 'FAILED' });
         }
         res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * @route GET /upload/download/:uploadId
+ * @desc Download a completed file with its original name
+ */
+router.get('/download/:uploadId', async (req, res) => {
+    try {
+        const { uploadId } = req.params;
+        const upload = await Upload.findById(uploadId);
+
+        if (!upload || upload.status !== 'COMPLETED') {
+            return res.status(404).json({ error: 'File not found or upload not completed' });
+        }
+
+        const filePath = path.join(COMPLETED_DIR, `${uploadId}_${upload.filename}`);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Physical file not found' });
+        }
+
+        // res.download will set Content-Disposition and clear filename automatically
+        res.download(filePath, upload.filename);
+    } catch (error) {
+        console.error('Download error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
