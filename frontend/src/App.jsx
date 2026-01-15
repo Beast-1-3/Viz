@@ -166,8 +166,15 @@ function App() {
       setProgress(100);
 
       await deleteUploadState(fileHash);
-      saveToHistory(file.name, file.size, 'SUCCESS', fileHash);
+      saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalizeRes.data.fileUrl, finalizeRes.data.finalHash);
       setPendingResume(null);
+
+      // Clear the active selection after 2 seconds to avoid duplicate look
+      setTimeout(() => {
+        setFile(null);
+        setStatus('IDLE');
+        setResult(null);
+      }, 2000);
 
     } catch (err) {
       stopSpeedTracker();
@@ -229,8 +236,16 @@ function App() {
     if (speedIntervalRef.current) clearInterval(speedIntervalRef.current);
   };
 
-  const saveToHistory = async (name, size, resultStatus, fileHash) => {
-    await saveHistory({ filename: name, size, status: resultStatus, timestamp: Date.now(), fileHash });
+  const saveToHistory = async (name, size, resultStatus, fileHash, fileUrl = null, finalHash = null) => {
+    await saveHistory({
+      filename: name,
+      size,
+      status: resultStatus,
+      timestamp: Date.now(),
+      fileHash,
+      fileUrl,
+      finalHash
+    });
     loadHistory();
   };
 
@@ -362,16 +377,33 @@ function App() {
             {/* History Items */}
             {history.map((item, idx) => (
               <div key={idx} className="history-item p-4 flex items-center justify-between group shadow-sm opacity-80 hover:opacity-100 transition-opacity">
-                <div className="flex-1 flex items-center gap-4">
+                <div className="flex-1 flex flex-col">
                   <span className="font-bold text-slate-700 truncate max-w-[200px]">{item.filename}</span>
-                  <div className="hidden md:flex items-center gap-4 text-xs text-slate-500 font-medium">
+                  <div className="flex items-center gap-4 text-[10px] text-slate-400 font-medium">
                     <span>{new Date(item.timestamp).toLocaleDateString()}</span>
                     <span className="opacity-40">|</span>
                     <span>{formatBytes(item.size)}</span>
+                    {item.finalHash && (
+                      <>
+                        <span className="opacity-40">|</span>
+                        <span className="font-mono text-[9px] truncate max-w-[100px]" title={item.finalHash}>SHA: {item.finalHash.substring(0, 8)}...</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4">
+                  {item.status === 'SUCCESS' && item.fileUrl && (
+                    <a
+                      href={`http://localhost:5001${item.fileUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      Download
+                    </a>
+                  )}
                   <div className={`status-badge ${item.status === 'SUCCESS' ? 'status-success' : 'status-failed'}`}>
                     {item.status === 'SUCCESS' ? (
                       <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Success</>
