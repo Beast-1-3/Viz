@@ -4,7 +4,7 @@ import { getQuickHash } from './utils/hash';
 import { saveUploadState, getUploadState, deleteUploadState, saveHistory, getHistory, clearHistory, deleteHistoryItem } from './utils/db';
 import logo from './assets/logo.png';
 
-const API_BASE = 'http://localhost:5001/api/upload';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5001/api/upload';
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 
 function App() {
