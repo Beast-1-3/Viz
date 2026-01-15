@@ -1,111 +1,96 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --secondary: #ec4899;
-  --bg-dark: #020617;
-  --panel-dark: #0f172a;
-  --border-slate: rgba(148, 163, 184, 0.1);
+  --primary: #0f172a;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-accent: #fefce8;
+  /* Light warm beige/yellow from photo */
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border-light: #e2e8f0;
 }
 
 body {
-  background-color: var(--bg-dark);
-  color: #f8fafc;
-  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 }
 
-/* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+.white-card {
+  background: var(--bg-card);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border-radius: 12px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+.upload-zone {
+  background-color: var(--bg-accent);
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  transition: all 0.2s ease;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 10px;
+.upload-zone:hover {
+  border-color: #94a3b8;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+.history-item {
+  background-color: var(--bg-accent);
+  border-radius: 8px;
+  transition: transform 0.1s ease;
 }
 
-.glass {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border-slate);
+.history-item:hover {
+  transform: translateY(-1px);
 }
 
-.glass-card {
-  background: rgba(30, 41, 59, 0.4);
-  border: 1px solid var(--border-slate);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.glass-card:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  background: rgba(30, 41, 59, 0.6);
+.status-success {
+  background-color: #dcfce7;
+  color: #166534;
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 200%;
-  animation: gradient-flow 5s ease infinite;
+.status-failed {
+  background-color: #fee2e2;
+  color: #991b1b;
 }
 
-@keyframes gradient-flow {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
+.status-uploading {
+  background-color: #fef9c3;
+  color: #854d0e;
 }
 
-.upload-area {
-  position: relative;
-  border: 2px dashed rgba(148, 163, 184, 0.2);
-  transition: all 0.3s ease;
+button.primary-btn {
+  background-color: var(--primary);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: opacity 0.2s;
 }
 
-.upload-area:hover {
-  border-color: var(--primary);
-  background: rgba(99, 102, 241, 0.05);
+button.primary-btn:hover {
+  opacity: 0.9;
 }
 
-.upload-area.dragging {
-  border-color: var(--primary);
-  background: rgba(99, 102, 241, 0.1);
-  transform: scale(1.01);
+/* Custom transitions */
+.fade-enter {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
-.shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-input[type="file"]::file-selector-button {
-  display: none;
+.fade-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
 }

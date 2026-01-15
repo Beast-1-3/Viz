@@ -44,3 +44,9 @@ export const clearHistory = async () => {
     const db = await dbPromise;
     await db.clear(HISTORY_STORE);
 };
+
+export const deleteHistoryItem = async (fileHash) => {
+    const db = await dbPromise;
+    await db.delete(HISTORY_STORE, fileHash);
+};
+
