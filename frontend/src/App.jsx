@@ -22,6 +22,9 @@ function App() {
   const [speed, setSpeed] = useState(0);
   const [eta, setEta] = useState(null);
   const [chaosMode, setChaosMode] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const isPausedRef = useRef(false);
 
   const uploadStartTime = useRef(null);
   const bytesUploadedRef = useRef(0);
@@ -125,7 +128,12 @@ function App() {
         const workers = [];
         const runWorker = async () => {
           while (queue.length > 0) {
+            if (isPausedRef.current) break; // Check if we should stop this worker
+
             const chunkIndex = queue.shift();
+            // If the queue was empty but another worker got it, skip
+            if (chunkIndex === undefined) continue;
+
             const start = chunkIndex * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const chunk = file.slice(start, end);
@@ -146,6 +154,9 @@ function App() {
 
       if (queue.length > 0) await uploadPool();
 
+      // If we finished because of pause, just return and don't finalize
+      if (isPausedRef.current) return;
+
       stopSpeedTracker();
       setStatus('PROCESSING');
       const finalizeRes = await axios.post(`${API_BASE}/finalize`, { uploadId });
@@ -164,6 +175,18 @@ function App() {
       setStatus('FAILED');
     }
   };
+
+  const handleTogglePause = () => {
+    const nextState = !isPaused;
+    setIsPaused(nextState);
+    isPausedRef.current = nextState;
+    if (!nextState) {
+      uploadFile();
+    } else {
+      stopSpeedTracker();
+    }
+  };
+
 
   const uploadChunkWithRetry = async (chunk, uploadId, chunkIndex, retryCount = 0) => {
     setChunkStates(prev => ({ ...prev, [chunkIndex]: 'uploading' }));
@@ -259,13 +282,23 @@ function App() {
             {/* Current Upload Item */}
             {file && (
               <div className="history-item p-4 flex items-center justify-between group shadow-sm animate-in fade-in duration-500">
-                <div className="flex-1 flex items-center gap-4">
-                  <span className="font-bold text-slate-700 truncate max-w-[200px]">{file.name}</span>
-                  <div className="hidden md:flex items-center gap-4 text-xs text-slate-500 font-medium">
-                    <span>{formatEta(eta)}</span>
-                    <span className="opacity-40">|</span>
-                    <span>{formatBytes(file.size)}</span>
+                <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-slate-700 truncate max-w-[200px]">{file.name}</span>
+                    <div className="hidden md:flex items-center gap-4 text-xs text-slate-500 font-medium">
+                      <span>{formatEta(eta)}</span>
+                      <span className="opacity-40">|</span>
+                      <span>{formatBytes(file.size)}</span>
+                    </div>
                   </div>
+                  {status === 'UPLOADING' && (
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-1">
+                      <div
+                        className={`h-full bg-amber-500 transition-all duration-300 ${!isPaused ? 'streaming-bar' : ''}`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -277,17 +310,34 @@ function App() {
                       </div>
                     </button>
                   ) : (
-                    <div className={`status-badge ${status === 'COMPLETED' ? 'status-success' : status === 'FAILED' ? 'status-failed' : 'status-uploading'}`}>
-                      {status === 'COMPLETED' ? (
-                        <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Success</>
-                      ) : status === 'FAILED' ? (
-                        <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg> Failed</>
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                          {status === 'UPLOADING' ? `${progress}%` : status}
-                        </span>
+                    <div className="flex items-center gap-3">
+                      {status === 'UPLOADING' && (
+                        <button
+                          onClick={handleTogglePause}
+                          className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                          title={isPaused ? "Resume Upload" : "Pause Upload"}
+                        >
+                          {isPaused ? (
+                            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h4z" /></svg>
+                          )}
+                        </button>
                       )}
+
+                      <div className={`status-badge ${status === 'COMPLETED' ? 'status-success' : status === 'FAILED' ? 'status-failed' : isPaused ? 'status-uploading opacity-60' : 'status-uploading'}`}>
+                        {status === 'COMPLETED' ? (
+                          <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Success</>
+                        ) : status === 'FAILED' ? (
+                          <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg> Failed</>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full bg-amber-500 ${!isPaused ? 'animate-ping' : ''}`} />
+                            {status === 'UPLOADING' ? (isPaused ? 'Paused' : 'Uploading') : status}
+                            {status === 'UPLOADING' && !isPaused && <span className="ml-1 text-[10px] font-bold">{progress}%</span>}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
