@@ -1,0 +1,35 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: cloudconnect-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: cloudconnect-backend
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/CloudConnect
+      - PORT=5001
+    volumes:
+      - ./backend/CloudConnect-Vault:/usr/src/app/CloudConnect-Vault
+    depends_on:
+      - mongodb
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_BASE=http://localhost:5001/api/upload
+    container_name: cloudconnect-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:

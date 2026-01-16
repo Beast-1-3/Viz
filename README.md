@@ -60,13 +60,23 @@ Resumability is handled via a dual-layered approach:
 
 ---
 
-## 🏃 Getting Started
+### Docker Deployment (Recommended)
+You can deploy the entire stack (Frontend, Backend, and MongoDB) using a single command:
 
-### Prerequisites
-- Node.js (v18+)
-- MongoDB (Running locally or via Atlas)
+1. **Pre-requisite**: Ensure Docker and Docker Compose are installed.
+2. **Build and Start**:
+   ```bash
+   docker-compose up --build
+   ```
+3. **Access**:
+   - Frontend: `http://localhost:80`
+   - Backend API: `http://localhost:5001`
 
-### Installation
+The files will be saved in `./backend/CloudConnect-Vault` inside the repository folder.
+
+---
+
+### Manual Installation
 1. **Backend**:
    ```bash
    cd backend
@@ -82,3 +92,4 @@ Resumability is handled via a dual-layered approach:
    ```
 
 3. Open `http://localhost:5173` and upload something massive!
+
