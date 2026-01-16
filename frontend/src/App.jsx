@@ -517,10 +517,6 @@ function App() {
           </div>
         </div>
 
-        {/* Footer info from photo */}
-        <div className="text-center">
-          <p className="text-slate-400 text-sm font-medium">CloudConnect • Future in Cloud</p>
-        </div>
 
       </div>
     </div>
