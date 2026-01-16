@@ -215,7 +215,7 @@ router.post('/finalize', async (req, res) => {
         res.json({
             status: 'COMPLETED',
             finalHash,
-            zipContent
+            zipContents
         });
 
         // Cleanup: Remove chunks from DB and disk (optional, ideally after a delay or success)

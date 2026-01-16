@@ -446,6 +446,29 @@ function App() {
               </div>
             )}
 
+            {/* ZIP Content Preview (The "Peek" Requirement) */}
+            {status === 'COMPLETED' && result?.zipContents && (
+              <div className="p-6 bg-amber-50 rounded-xl border border-amber-100 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-widest">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                  Archive Contents (Top-level)
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {result.zipContents.slice(0, 10).map((file, i) => (
+                    <div key={i} className="flex items-center justify-between bg-white/50 p-2 rounded text-[11px] font-medium text-slate-600">
+                      <span className="truncate pr-4">{file.name}</span>
+                      <span className="text-slate-400 shrink-0">{formatBytes(file.size)}</span>
+                    </div>
+                  ))}
+                  {result.zipContents.length > 10 && (
+                    <div className="col-span-full text-center text-[10px] text-amber-600 font-bold italic pt-1">
+                      + {result.zipContents.length - 10} more files...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Matrix & Stats tray for current upload (subtle) */}
             {status !== 'IDLE' && status !== 'COMPLETED' && file && (
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col md:flex-row items-center gap-6">
