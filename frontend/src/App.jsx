@@ -169,8 +169,43 @@ function App() {
       if (isPausedRef.current) return;
 
       stopSpeedTracker();
-      setStatus('PROCESSING');
-      const finalizeRes = await axios.post(`${API_BASE}/finalize`, { uploadId });
+      setStatus('FINALIZING');
+
+      let finalizeRes;
+      try {
+        // Increase timeout for initial finalize request (hashing 2GB+ takes time)
+        finalizeRes = await axios.post(`${API_BASE}/finalize`, { uploadId }, { timeout: 120000 });
+      } catch (fErr) {
+        // If it times out or 504 gateway timeout, the server is still hashing. Start polling.
+        if (fErr.code === 'ECONNABORTED' || fErr.response?.status === 504) {
+          const pollFinalize = async () => {
+            try {
+              const pollRes = await axios.get(`${API_BASE}/status`, { params: { fileHash } });
+              if (pollRes.data.status === 'COMPLETED') {
+                const finalData = pollRes.data.upload;
+                setResult(finalData);
+                setStatus('COMPLETED');
+                setProgress(100);
+                await deleteUploadState(fileHash);
+                saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalData.fileUrl || `/api/upload/download/${uploadId}`, finalData.finalHash);
+                setTimeout(() => { setFile(null); setStatus('IDLE'); setResult(null); }, 2000);
+              } else if (pollRes.data.status === 'FAILED') {
+                setError("Finalization failed on server");
+                setStatus('FAILED');
+              } else {
+                setStatus('PROCESSING');
+                setTimeout(pollFinalize, 5000);
+              }
+            } catch (pErr) {
+              console.error("Polling error:", pErr);
+              setTimeout(pollFinalize, 10000);
+            }
+          };
+          pollFinalize();
+          return;
+        }
+        throw fErr;
+      }
 
       setResult(finalizeRes.data);
       setStatus('COMPLETED');
@@ -189,7 +224,8 @@ function App() {
 
     } catch (err) {
       stopSpeedTracker();
-      setError(err.message);
+      const errorMsg = err.response?.data?.error || err.message;
+      setError(errorMsg);
       setStatus('FAILED');
     }
   };
@@ -346,13 +382,15 @@ function App() {
                     </button>
                   ) : (
                     <div className="flex items-center gap-3">
-                      {status === 'UPLOADING' && (
+                      {(status === 'UPLOADING' || status === 'FAILED') && (
                         <button
-                          onClick={handleTogglePause}
-                          className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                          title={isPaused ? "Resume Upload" : "Pause Upload"}
+                          onClick={status === 'FAILED' ? () => { setStatus('INITIALIZING'); uploadFile(); } : handleTogglePause}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 transition-colors ${status === 'FAILED' ? 'text-red-600 hover:bg-red-50 bg-red-50/50' : 'text-slate-600 hover:bg-slate-50'}`}
+                          title={status === 'FAILED' ? "Retry Upload" : isPaused ? "Resume Upload" : "Pause Upload"}
                         >
-                          {isPaused ? (
+                          {status === 'FAILED' ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                          ) : isPaused ? (
                             <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                           ) : (
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h4z" /></svg>
@@ -373,6 +411,11 @@ function App() {
                           </span>
                         )}
                       </div>
+                      {status === 'FAILED' && error && (
+                        <div className="absolute top-full right-0 mt-2 p-2 bg-red-50 text-red-600 text-[9px] font-bold rounded border border-red-100 whitespace-nowrap z-10 shadow-lg">
+                          Error: {error}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

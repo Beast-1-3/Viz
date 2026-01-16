@@ -94,7 +94,8 @@ router.get('/status', async (req, res) => {
             uploadId: upload._id,
             status: upload.status,
             receivedChunks: chunkIndices,
-            totalChunks: upload.totalChunks
+            totalChunks: upload.totalChunks,
+            upload: upload // Include full document for polling metadata (fileUrl, etc)
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -150,6 +151,9 @@ router.post('/chunk', uploadMiddleware.single('chunk'), async (req, res) => {
         res.json({ success: true, chunkIndex });
     } catch (error) {
         console.error('Chunk upload error:', error);
+        if (error.code === 'ENOSPC') {
+            return res.status(507).json({ error: 'Server storage is full. 2GB+ files require premium hosting/VPS.' });
+        }
         res.status(500).json({ error: error.message });
     }
 });
