@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { getQuickHash } from './utils/hash';
 import { saveUploadState, getUploadState, deleteUploadState, saveHistory, getHistory, clearHistory, deleteHistoryItem } from './utils/db';
-import logo from './assets/logo.png';
+
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5001/api/upload';
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
@@ -338,10 +338,7 @@ function App() {
     <div className="min-h-screen p-4 md:p-12 lg:p-24 flex items-center justify-center">
       <div className="max-w-4xl w-full space-y-12">
 
-        {/* Header with Logo */}
-        <header className="flex flex-col items-center justify-center space-y-2">
-          <img src={logo} alt="CloudConnect Logo" className="h-16 md:h-24 w-auto object-contain" />
-        </header>
+
 
         {/* Upload Container */}
         <div className="white-card p-8 md:p-16 space-y-8 relative overflow-hidden">
