@@ -187,7 +187,7 @@ function App() {
                 setStatus('COMPLETED');
                 setProgress(100);
                 await deleteUploadState(fileHash);
-                saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalData.fileUrl || `/api/upload/download/${uploadId}`, finalData.finalHash);
+                saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalData.finalHash);
                 setTimeout(() => { setFile(null); setStatus('IDLE'); setResult(null); }, 2000);
               } else if (pollRes.data.status === 'FAILED') {
                 setError("Finalization failed on server");
@@ -212,7 +212,7 @@ function App() {
       setProgress(100);
 
       await deleteUploadState(fileHash);
-      saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalizeRes.data.fileUrl, finalizeRes.data.finalHash);
+      saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalizeRes.data.finalHash);
       setPendingResume(null);
 
       // Clear the active selection after 2 seconds to avoid duplicate look
@@ -292,14 +292,13 @@ function App() {
     if (speedIntervalRef.current) clearInterval(speedIntervalRef.current);
   };
 
-  const saveToHistory = async (name, size, resultStatus, fileHash, fileUrl = null, finalHash = null) => {
+  const saveToHistory = async (name, size, resultStatus, fileHash, finalHash = null) => {
     await saveHistory({
       filename: name,
       size,
       status: resultStatus,
       timestamp: Date.now(),
       fileHash,
-      fileUrl,
       finalHash
     });
     loadHistory();
@@ -456,17 +455,7 @@ function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {item.status === 'SUCCESS' && item.fileUrl && (
-                    <a
-                      href={`${API_BASE.replace('/api/upload', '')}${item.fileUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                      Download
-                    </a>
-                  )}
+
                   <div className={`status-badge ${item.status === 'SUCCESS' ? 'status-success' : 'status-failed'}`}>
                     {item.status === 'SUCCESS' ? (
                       <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Success</>

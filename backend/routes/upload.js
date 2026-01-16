@@ -215,8 +215,7 @@ router.post('/finalize', async (req, res) => {
         res.json({
             status: 'COMPLETED',
             finalHash,
-            zipContent,
-            fileUrl: `/api/upload/download/${uploadId}`
+            zipContent
         });
 
         // Cleanup: Remove chunks from DB and disk (optional, ideally after a delay or success)
@@ -232,35 +231,6 @@ router.post('/finalize', async (req, res) => {
     }
 });
 
-/**
- * @route GET /upload/download/:uploadId
- * @desc Download a completed file with its original name
- */
-router.get('/download/:uploadId', async (req, res) => {
-    try {
-        const { uploadId } = req.params;
-        const upload = await Upload.findById(uploadId);
 
-        if (!upload || upload.status !== 'COMPLETED') {
-            return res.status(404).json({ error: 'File not found or upload not completed' });
-        }
-
-        const filePath = path.join(COMPLETED_DIR, `${uploadId}_${upload.filename}`);
-
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ error: 'Physical file not found' });
-        }
-
-        // Explicitly set headers to ensure "proper" filename handling across all browsers
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(upload.filename)}"`);
-
-        const fileStream = fs.createReadStream(filePath);
-        fileStream.pipe(res);
-    } catch (error) {
-        console.error('Download error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 module.exports = router;
