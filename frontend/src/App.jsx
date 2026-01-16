@@ -101,8 +101,27 @@ function App() {
       }
 
       await saveUploadState(fileHash, { uploadId, filename: file.name, status: 'UPLOADING' });
-      const statusRes = await axios.get(`${API_BASE}/status`, { params: { fileHash } });
-      const receivedChunks = statusRes.data.receivedChunks || [];
+
+      let receivedChunks = [];
+      try {
+        const statusRes = await axios.get(`${API_BASE}/status`, { params: { fileHash } });
+        receivedChunks = statusRes.data.receivedChunks || [];
+      } catch (sErr) {
+        if (sErr.response?.status === 404) {
+          // Server lost the session (cleanup/crash)
+          setStatus('INITIALIZING');
+          const initRes = await axios.post(`${API_BASE}/init`, {
+            filename: file.name,
+            fileHash,
+            totalSize: file.size,
+            totalChunks
+          });
+          uploadId = initRes.data.uploadId;
+          await saveUploadState(fileHash, { uploadId, filename: file.name, status: 'UPLOADING' });
+        } else {
+          throw sErr;
+        }
+      }
 
       setChunkStates(prev => {
         const next = { ...prev };
@@ -405,7 +424,13 @@ function App() {
                         ) : (
                           <span className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full bg-amber-500 ${!isPaused ? 'animate-ping' : ''}`} />
-                            {status === 'UPLOADING' ? (isPaused ? 'Paused' : 'Uploading') : status}
+                            {status === 'UPLOADING' ? (isPaused ? 'Paused' : 'Uploading') :
+                              status === 'HASHING' ? 'Hashing File...' :
+                                status === 'RESUMING' ? 'Resuming...' :
+                                  status === 'INITIALIZING' ? 'Initializing...' :
+                                    status === 'PROCESSING' ? 'Processing...' :
+                                      status === 'FINALIZING' ? 'Verifying...' :
+                                        status}
                             {status === 'UPLOADING' && !isPaused && <span className="ml-1 text-[10px] font-bold">{progress}%</span>}
                           </span>
                         )}
