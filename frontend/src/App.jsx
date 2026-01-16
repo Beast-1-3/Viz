@@ -415,7 +415,7 @@ function App() {
                 <div className="flex items-center gap-4">
                   {item.status === 'SUCCESS' && item.fileUrl && (
                     <a
-                      href={`http://localhost:5001${item.fileUrl}`}
+                      href={`${API_BASE.replace('/api/upload', '')}${item.fileUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
