@@ -1,0 +1,32 @@
+services:
+  # Backend Service
+  - type: web
+    name: cloudconnect-backend
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: MONGODB_URI
+        sync: false # Set this in the Render dashboard or use a Render MongoDB instance
+      - key: PORT
+        value: 5001
+    disk:
+      name: vault-storage
+      mountPath: /usr/src/app/CloudConnect-Vault
+      sizeGB: 10 # Adjust size as needed for "Large Files"
+
+  # Frontend Service
+  - type: web
+    name: cloudconnect-frontend
+    runtime: docker
+    dockerContext: ./frontend
+    dockerfilePath: ./frontend/Dockerfile
+    envVars:
+      - key: VITE_API_BASE
+        fromService:
+          type: web
+          name: cloudconnect-backend
+          property: host
+        # Note: If accessing from browser, use the full URL 
+        # Render will automatically map this if configured correctly, 
+        # but manual substitution might be needed for the client-side VITE_API_BASE.

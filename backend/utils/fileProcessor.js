@@ -1,42 +1,9 @@
 const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const yauzl = require('yauzl');
 
 /**
- * Merges file chunks into a single file using streaming writes to save memory
- */
-const mergeChunks = async (chunksDir, uploadId, totalChunks, outputPath) => {
-    const writeStream = fs.createWriteStream(outputPath);
-
-    for (let i = 0; i < totalChunks; i++) {
-        const chunkPath = path.join(chunksDir, `${uploadId}_${i}`);
-
-        if (!fs.existsSync(chunkPath)) {
-            throw new Error(`Chunk ${i} missing for upload ${uploadId}`);
-        }
-
-        const readStream = fs.createReadStream(chunkPath);
-
-        await new Promise((resolve, reject) => {
-            readStream.pipe(writeStream, { end: false });
-            readStream.on('end', resolve);
-            readStream.on('error', reject);
-        });
-
-        // Optional: Delete chunk after merging to save space
-        // fs.unlinkSync(chunkPath);
-    }
-
-    writeStream.end();
-    return new Promise((resolve, reject) => {
-        writeStream.on('finish', resolve);
-        writeStream.on('error', reject);
-    });
-};
-
-/**
- * Calculates SHA-256 hash of a file using streaming
+ * Calculates SHA-256 hash of a file using streaming to ensure efficiency for large files.
  */
 const calculateFileHash = (filePath) => {
     return new Promise((resolve, reject) => {
@@ -50,7 +17,7 @@ const calculateFileHash = (filePath) => {
 };
 
 /**
- * Peeks inside a ZIP file and returns file list
+ * Lists the top-level contents of a ZIP record for verification.
  */
 const peekZip = (filePath) => {
     return new Promise((resolve, reject) => {
@@ -75,7 +42,7 @@ const peekZip = (filePath) => {
 };
 
 module.exports = {
-    mergeChunks,
     calculateFileHash,
     peekZip
 };
+

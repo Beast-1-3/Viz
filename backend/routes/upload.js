@@ -12,12 +12,6 @@ const VAULT_DIR = path.join(__dirname, '../CloudConnect-Vault');
 const PROCESSING_DIR = path.join(VAULT_DIR, 'Incomplete');
 const COMPLETED_DIR = path.join(VAULT_DIR, 'Ready');
 
-// Ensure directories exist
-[PROCESSING_DIR, COMPLETED_DIR].forEach(dir => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
-
-// Use memory storage to get buffer and write at offset manually
 const storage = multer.memoryStorage();
 const uploadMiddleware = multer({ storage });
 
@@ -37,12 +31,9 @@ router.post('/init', async (req, res) => {
                 return res.json({ status: 'COMPLETED', uploadId: upload._id });
             }
 
-            // Ensure placeholder file exists even if server restarted/files were moved
             const filePath = path.join(PROCESSING_DIR, `${upload._id}_${filename}`);
             if (!fs.existsSync(filePath)) {
                 fs.closeSync(fs.openSync(filePath, 'w'));
-                // If file was missing, we must assume previous chunks are lost on disk
-                // Resetting chunk status in DB to match disk state
                 await Chunk.deleteMany({ uploadId: upload._id });
             }
 
@@ -113,18 +104,9 @@ router.post('/chunk', uploadMiddleware.single('chunk'), async (req, res) => {
 
         if (!upload) return res.status(404).json({ error: 'Upload not found' });
 
-        // 1. Check if chunk already marked RECEIVED
-        const existingChunk = await Chunk.findOne({ uploadId, chunkIndex, status: 'RECEIVED' });
-        if (existingChunk) {
-            return res.json({ success: true, chunkIndex, message: 'Chunk already received' });
-        }
-
-        // 2. Calculate file write offset
         const offset = parseInt(chunkIndex) * CHUNK_SIZE;
         const filePath = path.join(PROCESSING_DIR, `${uploadId}_${upload.filename}`);
 
-        // 3. Write using write stream at specific offset
-        // Using 'r+' to write to existing file without truncating
         const writeStream = fs.createWriteStream(filePath, {
             flags: 'r+',
             start: offset
@@ -217,10 +199,6 @@ router.post('/finalize', async (req, res) => {
             finalHash,
             zipContents
         });
-
-        // Cleanup: Remove chunks from DB and disk (optional, ideally after a delay or success)
-        // await Chunk.deleteMany({ uploadId });
-        // For now, keep them for debugging if needed, or implement a cleanup worker.
 
     } catch (error) {
         console.error(error);

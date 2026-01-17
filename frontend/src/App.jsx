@@ -141,7 +141,6 @@ function App() {
 
       startSpeedTracker(file.size, uploadedCount * CHUNK_SIZE);
 
-      // Initialize AbortController for this session
       abortControllerRef.current = new AbortController();
 
       const MAX_CONCURRENT = 3;
@@ -167,7 +166,6 @@ function App() {
               setProgress(Math.floor((uploadedCount / totalChunks) * 100));
             } catch (err) {
               if (err.name === 'CanceledError') {
-                // Re-queue the chunk for next time
                 queue.push(chunkIndex);
                 break;
               }
@@ -184,8 +182,8 @@ function App() {
 
       if (queue.length > 0) await uploadPool();
 
-      // If we finished because of pause, just return and don't finalize
       if (isPausedRef.current) return;
+
 
       stopSpeedTracker();
       setStatus('FINALIZING');
@@ -233,14 +231,6 @@ function App() {
       await deleteUploadState(fileHash);
       saveToHistory(file.name, file.size, 'SUCCESS', fileHash, finalizeRes.data.finalHash);
       setPendingResume(null);
-
-      // Clear the active selection after 2 seconds to avoid duplicate look
-      setTimeout(() => {
-        setFile(null);
-        setStatus('IDLE');
-        setResult(null);
-      }, 2000);
-
     } catch (err) {
       stopSpeedTracker();
       const errorMsg = err.response?.data?.error || err.message;
@@ -337,9 +327,6 @@ function App() {
   return (
     <div className="min-h-screen p-4 md:p-12 lg:p-24 flex items-center justify-center">
       <div className="max-w-4xl w-full space-y-12">
-
-
-
         {/* Upload Container */}
         <div className="white-card p-8 md:p-16 space-y-8 relative overflow-hidden">
           <div
@@ -443,7 +430,7 @@ function App() {
               </div>
             )}
 
-            {/* ZIP Content Preview (The "Peek" Requirement) */}
+            {/* ZIP Content Preview */}
             {status === 'COMPLETED' && result?.zipContents && (
               <div className="p-6 bg-amber-50 rounded-xl border border-amber-100 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-widest">
@@ -466,7 +453,7 @@ function App() {
               </div>
             )}
 
-            {/* Matrix & Stats tray for current upload (subtle) */}
+            {/* Matrix & Stats Tray */}
             {status !== 'IDLE' && status !== 'COMPLETED' && file && (
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col md:flex-row items-center gap-6">
                 <div className="flex-1 w-full flex flex-wrap gap-1">

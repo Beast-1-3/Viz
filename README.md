@@ -1,69 +1,69 @@
-# 🌐 CloudConnect: Enterprise Resumable Uploader
+# CloudConnect Vault - Resumable Large File Upload System
 
-CloudConnect is a resilient, enterprise-grade file upload system designed to handle large datasets (>1GB) with surgical precision. It implements distributed state management, memory-efficient streaming I/O, and a battle-hardened UI that survives network crashes.
+A robust, premium file upload system designed to handle large file transfers (tested up to 2.4GB+) with resumability, integrity verification, and a sleek modern interface.
 
----
-
-## 🚀 Deployment (Quick Start)
-
-### 🐳 Docker Deployment (Recommended)
-Launch the entire stack (Frontend, Backend, MongoDB) with one command:
-```bash
-docker-compose up --build
-```
-- **UI**: `http://localhost:5173`
-- **API**: `http://localhost:5001`
+## 🚀 Key Features
+- **Resumable Uploads**: Pause and resume uploads at any time, even after page refreshes or network failures.
+- **Concurrent Chunking**: Uploads files in 5MB pieces with multiple parallel workers (default 3) for maximum speed.
+- **File Integrity**: Dual-stage hashing (Quick-hash for session identification and full SHA-256 for verification).
+- **Graceful Recovery**: Automatically detects partially uploaded files and resumes from the exact byte where it left off.
+- **Premium UI/UX**: Real-time progress tracking, speed calculation, ETA estimation, and a visual "matrix" of chunk states.
+- **ZIP Peek**: Automatically explores the top-level contents of uploaded ZIP archives.
 
 ---
 
-## 🛠️ Implementation Details
+## 🛠 Technical Implementation
 
 ### 1. File Integrity (Hashing)
-- **Quick Fingerprinting**: Before uploading, the frontend generates a "Quick Hash" based on the file's name, size, and the first/last 1MB of data. This allows for instant identification without reading a 2GB file into memory.
-- **Final SHA-256**: Upon reassembly, the backend streams the entire file through `crypto.createHash('sha256')`. This hash is compared against future requests to ensure zero corruption during the merge.
+We use a two-step hashing strategy to balance performance and security:
+- **Client-Side (Quick Hash)**: To avoid freezing the main thread while hashing a 2GB+ file, we generate a unique identifier by hashing the **first 1MB**, the **last 1MB**, and the **total file size**. This provides a collision-resistant "fingerprint" used to reconnect to previous upload sessions.
+- **Server-Side (Full SHA-256)**: Once all chunks are received and reassembled, the backend performs a streaming SHA-256 calculation over the entire file. This ensures that the final file on disk is bit-for-bit identical to the source.
 
 ### 2. Pause/Resume Logic
-- **Front-end Persistence**: Active upload states (UploadID, Progress, FileHash) are stored in the browser's **IndexedDB**. 
-- **Graceful Interruption**: Uses `AbortController` to instantly terminate pending network requests when the user clicks Pause.
-- **The Handshake**: On resume, the client sends a `GET /status` request. The backend returns a bit-map of `receivedChunks`. The client then filters its upload queue to only send the missing indices.
+The system manages high-volume transfers through a "Sparse Writing" strategy:
+- **Initialization**: When an upload starts, the server creates a placeholder file.
+- **Offset Writing**: Each 5MB chunk is sent with its `chunkIndex`. The server uses `fs.createWriteStream` with the `start` option to write the chunk directly to its correct byte-offset in the target file.
+- **State Persistence**:
+    - **Frontend**: Stores the `uploadId` and `fileHash` in **IndexedDB**. 
+    - **Backend**: Records receive status for every chunk in a **MongoDB** collection.
+- **Resumption**: When a file is re-selected, the client queries the backend for missing chunk indices. It only queues chunks that the server hasn't "seen" yet, minimizing redundant data transfer.
 
-### 3. Handling the "Bonus Cases"
-1. **The Double-Finalize**: Handled via **Atomic State Transitions** in MongoDB. The `finalize` route uses `findOneAndUpdate` with a condition `{ status: 'UPLOADING' }`. Only the first request succeeds; subsequent near-simultaneous calls are ignored.
-2. **Network Flapping**: Uses **Exponential Backoff**. Failed chunks are retried 3 times with delays of $2^n$ seconds. We also include a `chaos.js` middleware to simulate a 30% failure rate for testing.
-3. **Out-of-Order Delivery**: Solved using **Direct Offset Writing**. Chunks are written to the file using `fs.createWriteStream` with specific `start` offsets (`index * 5MB`). This allows Chunk 10 to be written before Chunk 1.
-4. **Server Crash**: The system is **Stateless**. The database tracks chunk indices, and the file sits on disk. If the server restarts, the next "Handshake" from the client restores the exact state from where it left off.
-
----
-
-## 📊 Technical Requirements Coverage
-
-| Requirement | Implementation Detail | Status |
-| :--- | :--- | :--- |
-| **Chunking** | Splitting via `Blob.slice()` at 5MB intervals | ✅ |
-| **Concurrency** | Managed via worker pool limited to 3 concurrent XHRs | ✅ |
-| **Streaming I/O** | `fs.createWriteStream` with offsets (Zero memory bloat) | ✅ |
-| **ZIP Peek** | Selective header streaming via `yauzl` (no extraction) | ✅ |
-| **Database** | MongoDB used for resilient document state | ✅ |
-| **Cleanup** | Hourly Cron job removes orphans > 24hrs old | ✅ |
+### 3. Known Trade-offs
+- **Disk I/O Wait**: Writing to specific offsets is highly efficient for reassembly but can lead to fragmented disk writes if many uploads happen simultaneously.
+- **Polling for Large Files**: Calculating SHA-256 for a 2.4GB file can take 30+ seconds. We implemented a polling mechanism on the frontend to handle potential HTTP timeouts during this verification phase.
+- **Memory Buffer**: Chunks are temporarily buffered in memory (`multer.memoryStorage`) before being written to disk. While 5MB is safe, extreme concurrency could spike memory usage.
 
 ---
 
-## ⚖️ Trade-offs & Implementation Notes
-
-- **Database Choice**: Section 6 suggested MySQL, while Section C suggested MongoDB/Postgres. I chose **MongoDB** because its flexible schema is superior for handling dynamic bit-maps of successful chunks and nested ZIP content metadata.
-- **Download Removal**: As per the latest security hardening request, the **Download** route and UI were removed to ensure "Write-Only" protection of the server's Vault.
-- **Browser Memory**: For files > 5GB, reading the entire file into a Buffer for hashing would crash the tab. I used **Streaming Blob Slicing** to keep RAM usage under 50MB regardless of file size.
-
----
-
-## 📈 Future Enhancements
-
-1. **S3/Cloud Object Storage Integration**: Swapping local `fs` writes for S3 Multipart Uploads for infinite scaling.
-2. **End-to-End Encryption (E2EE)**: Encrypting chunks on the client side before they ever touch the network.
-3. **P2P Acceleration**: Using WebRTC to allow peer-assisted chunk delivery for users on the same local network.
-4. **Socket.io Progress**: Moving away from polling to real-time WebSockets for sub-millisecond progress updates.
+## 🔮 Further Enhancements
+- **Dynamic Chunk Sizing**: Automatically scale chunk size (e.g., 2MB to 20MB) based on real-time network throughput.
+- **Byte-Range Resumption**: Move beyond fixed-size chunks to support standard HTTP `Range` requests for even better compatibility.
+- **Direct Cloud Streaming**: Pipe chunks directly to AWS S3 or Google Cloud Storage using "Multipart Upload" APIs to save local disk space.
+- **Worker Threads**: Offload hashing and ZIP processing to Node.js worker threads to prevent blocking the event loop on the backend.
+- **Client-side Encryption**: Implementation of AES-GCM encryption on chunks before they leave the browser for zero-knowledge storage.
 
 ---
 
-## 📸 Demo Verification
-*A video demo and screenshots are available in the repository's `/assets` folder, showing a 1GB file surviving a manual network cut.*
+## 💻 Getting Started
+
+### Prerequisites
+- Node.js v16+
+- MongoDB
+
+### Installation
+1. Clone the repository.
+2. Install dependencies for both folders:
+   ```bash
+   cd backend && npm install
+   cd ../frontend && npm install
+   ```
+3. Start the backend:
+   ```bash
+   npm run dev
+   ```
+4. Start the frontend:
+   ```bash
+   npm run dev
+   ```
+
+Built with ❤️ by [Your Name/Team]
