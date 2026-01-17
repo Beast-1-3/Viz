@@ -1,24 +1,23 @@
 services:
-  # Backend Service
+  # Backend Service (Free Tier)
   - type: web
     name: cloudconnect-backend
     runtime: docker
+    plan: free # Explicitly set to free
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     envVars:
       - key: MONGODB_URI
-        sync: false # Set this in the Render dashboard or use a Render MongoDB instance
+        sync: false
       - key: PORT
         value: 5001
-    disk:
-      name: vault-storage
-      mountPath: /usr/src/app/CloudConnect-Vault
-      sizeGB: 10 # Adjust size as needed for "Large Files"
+    # Removed 'disk' section to stay on Render's Free tier
 
-  # Frontend Service
+  # Frontend Service (Free Tier)
   - type: web
     name: cloudconnect-frontend
     runtime: docker
+    plan: free # Explicitly set to free
     dockerContext: ./frontend
     dockerfilePath: ./frontend/Dockerfile
     envVars:
@@ -27,6 +26,3 @@ services:
           type: web
           name: cloudconnect-backend
           property: host
-        # Note: If accessing from browser, use the full URL 
-        # Render will automatically map this if configured correctly, 
-        # but manual substitution might be needed for the client-side VITE_API_BASE.
