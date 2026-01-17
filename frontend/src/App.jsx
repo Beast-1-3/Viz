@@ -460,7 +460,7 @@ function App() {
             )}
 
             {/* ZIP Content Preview */}
-            {status === 'COMPLETED' && result?.zipContents && (
+            {status === 'COMPLETED' && result?.zipContents && result.zipContents.length > 0 && (
               <div className="p-6 bg-amber-50 rounded-xl border border-amber-100 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-widest">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
