@@ -253,6 +253,24 @@ function App() {
     }
   };
 
+  const handleCancel = () => {
+    isPausedRef.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    stopSpeedTracker();
+    setFile(null);
+    setStatus('IDLE');
+    setProgress(0);
+    setUploadStats({ uploaded: 0, total: 0 });
+    setChunkStates({});
+    setSpeed(0);
+    setEta(null);
+    setResult(null);
+    setError(null);
+  };
+
+
 
   const uploadChunkWithRetry = async (chunk, uploadId, chunkIndex, retryCount = 0, signal = null) => {
     setChunkStates(prev => ({ ...prev, [chunkIndex]: 'uploading' }));
@@ -384,21 +402,32 @@ function App() {
                     </button>
                   ) : (
                     <div className="flex items-center gap-3">
-                      {(status === 'UPLOADING' || status === 'FAILED') && (
-                        <button
-                          onClick={status === 'FAILED' ? () => { setStatus('INITIALIZING'); uploadFile(); } : handleTogglePause}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 transition-colors ${status === 'FAILED' ? 'text-red-600 hover:bg-red-50 bg-red-50/50' : 'text-slate-600 hover:bg-slate-50'}`}
-                          title={status === 'FAILED' ? "Retry Upload" : isPaused ? "Resume Upload" : "Pause Upload"}
-                        >
-                          {status === 'FAILED' ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                          ) : isPaused ? (
-                            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h4z" /></svg>
-                          )}
-                        </button>
+                      {(status === 'UPLOADING' || status === 'FAILED' || status === 'RESUMING' || status === 'HASHING' || status === 'INITIALIZING' || status === 'PROCESSING' || status === 'FINALIZING') && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={status === 'FAILED' ? () => { setStatus('INITIALIZING'); uploadFile(); } : handleTogglePause}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 transition-colors ${status === 'FAILED' ? 'text-red-600 hover:bg-red-50 bg-red-50/50' : 'text-slate-600 hover:bg-slate-50'}`}
+                            title={status === 'FAILED' ? "Retry Upload" : isPaused ? "Resume Upload" : "Pause Upload"}
+                          >
+                            {status === 'FAILED' ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            ) : isPaused ? (
+                              <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h4z" /></svg>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={handleCancel}
+                            className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Cancel Upload"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
                       )}
+
 
                       <div className={`status-badge ${status === 'COMPLETED' ? 'status-success' : status === 'FAILED' ? 'status-failed' : isPaused ? 'status-uploading opacity-60' : 'status-uploading'}`}>
                         {status === 'COMPLETED' ? (
