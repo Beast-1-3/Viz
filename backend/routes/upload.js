@@ -177,8 +177,11 @@ router.post('/finalize', async (req, res) => {
         const processingPath = path.join(PROCESSING_DIR, `${uploadId}_${upload.filename}`);
         const finalPath = path.join(COMPLETED_DIR, `${uploadId}_${upload.filename}`);
 
-        // 1. Rename/Move from processing to completed (no merge needed now)
-        fs.renameSync(processingPath, finalPath);
+        if (fs.existsSync(processingPath)) {
+            fs.renameSync(processingPath, finalPath);
+        } else if (!fs.existsSync(finalPath)) {
+            throw new Error('Source file missing and not found in destination.');
+        }
 
         // 2. Calculate Final SHA-256
         const finalHash = await calculateFileHash(finalPath);
@@ -197,7 +200,7 @@ router.post('/finalize', async (req, res) => {
         res.json({
             status: 'COMPLETED',
             finalHash,
-            zipContents
+            zipContents: upload.zipContents
         });
 
     } catch (error) {
